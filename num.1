@@ -1,0 +1,154 @@
+# -*- coding: utf-8 -*-
+"""
+Created on Mon Oct 21 15:45:20 2019
+
+@author: yinghy
+"""
+
+import numpy as np
+import struct
+import os
+import torch
+import torch.nn.functional as F
+import torch.nn as nn
+from torch.autograd import Variable
+import torch.optim as optim
+
+
+#How to load the data is copied from the internet,
+#To show that I understand, I will give notes.
+def load_mnist_train(path, kind='train'):    
+    labels_path = os.path.join(path,'%s-labels.idx1-ubyte'% kind)
+    images_path = os.path.join(path,'%s-images.idx3-ubyte'% kind)
+    #path is the definite path like 'C:/Users"
+    with open(labels_path, 'rb') as lbpath:
+        magic, n = struct.unpack('>II',lbpath.read(8))
+        #read the magic number to give information about subsequent operation
+        labels = np.fromfile(lbpath,dtype=np.uint8)
+    with open(images_path, 'rb') as imgpath:
+        magic, num, rows, cols = struct.unpack('>IIII',imgpath.read(16))
+        images = np.fromfile(imgpath,dtype=np.uint8).reshape(len(labels), 784)
+    #Use the pixels value to describe a picture, reshape it to be n*784
+    #where n is the number of samples
+    return images, labels
+def load_mnist_test(path, kind='t10k'):
+    #the same operation for test samples
+    labels_path = os.path.join(path,'%s-labels.idx1-ubyte'% kind)
+    images_path = os.path.join(path,'%s-images.idx3-ubyte'% kind)
+    with open(labels_path, 'rb') as lbpath:
+        magic, n = struct.unpack('>II',lbpath.read(8))
+        labels = np.fromfile(lbpath,dtype=np.uint8)
+    with open(images_path, 'rb') as imgpath:
+        magic, num, rows, cols = struct.unpack('>IIII',imgpath.read(16))
+        images = np.fromfile(imgpath,dtype=np.uint8).reshape(len(labels), 784)
+    return images, labels 
+
+#Load the data
+path='D:\学习\科研\pytorch学习'
+train_images,train_labels=load_mnist_train(path)
+test_images,test_labels=load_mnist_test(path)
+train_images = torch.tensor(train_images,dtype=torch.float)
+test_images = torch.tensor(test_images,dtype=torch.float)
+
+trainlb=[]
+for t in range(len(train_labels)):
+    if train_labels[t] == 0:
+        trainlb.append([1,0,0,0,0,0,0,0,0,0])
+    elif train_labels[t] == 1:
+        trainlb.append([0,1,0,0,0,0,0,0,0,0])
+    elif train_labels[t] == 2:
+        trainlb.append([0,0,1,0,0,0,0,0,0,0])
+    elif train_labels[t] == 3:
+        trainlb.append([0,0,0,1,0,0,0,0,0,0])
+    elif train_labels[t] == 4:
+        trainlb.append([0,0,0,0,1,0,0,0,0,0])
+    elif train_labels[t] == 5:
+        trainlb.append([0,0,0,0,0,1,0,0,0,0])
+    elif train_labels[t] == 6:
+        trainlb.append([0,0,0,0,0,0,1,0,0,0])
+    elif train_labels[t] == 7:
+        trainlb.append([0,0,0,0,0,0,0,1,0,0])
+    elif train_labels[t] == 8:
+        trainlb.append([0,0,0,0,0,0,0,0,1,0])
+    elif train_labels[t] == 9:
+        trainlb.append([0,0,0,0,0,0,0,0,0,1])
+        
+testlb=[]
+for t in range(len(test_labels)):
+    if test_labels[t] == 0:
+        testlb.append([1,0,0,0,0,0,0,0,0,0])
+    elif test_labels[t] == 1:
+        testlb.append([0,1,0,0,0,0,0,0,0,0])
+    elif test_labels[t] == 2:
+        testlb.append([0,0,1,0,0,0,0,0,0,0])
+    elif test_labels[t] == 3:
+        testlb.append([0,0,0,1,0,0,0,0,0,0])
+    elif test_labels[t] == 4:
+        testlb.append([0,0,0,0,1,0,0,0,0,0])
+    elif test_labels[t] == 5:
+        testlb.append([0,0,0,0,0,1,0,0,0,0])
+    elif test_labels[t] == 6:
+        testlb.append([0,0,0,0,0,0,1,0,0,0])
+    elif test_labels[t] == 7:
+        testlb.append([0,0,0,0,0,0,0,1,0,0])
+    elif test_labels[t] == 8:
+        testlb.append([0,0,0,0,0,0,0,0,1,0])
+    elif test_labels[t] == 9:
+        testlb.append([0,0,0,0,0,0,0,0,0,1])
+
+testlb1 = torch.tensor(testlb,dtype=torch.float)
+trainlb1 = torch.tensor(trainlb,dtype=torch.float)       
+
+#Now we can see this in the variable explorer
+D_in = 784
+H1 = 400
+H2 = 120
+D_out = 10
+
+#The next part is to bulid a 3-layer fc NN, which means 1 hidden layer
+#use the softmax to normalize the output as a probability
+class Net(nn.Module):
+    def __init__(self, D_in, H1, H2, D_out):
+        super(Net, self).__init__()
+        self.linear1 = nn.Linear(D_in, H1)
+        self.linear2 = nn.Linear(H1, H2)
+        self.linear3 = nn.Linear(H2, D_out)
+        
+    def forward(self, x):
+        x = F.relu(self.linear1(x))
+        x = F.relu(self.linear2(x))
+        x = F.relu(self.linear3(x))
+        return F.softmax(x , dim = 1)
+
+
+# After constructing the NN, we use the Adam method to minimize our loss
+
+model = Net(D_in, H1, H2, D_out)
+optimizer = optim.Adam(model.parameters(), lr=1e-4)
+lossfn = nn.MSELoss(reduction='sum')
+
+def train():
+    optimizer.zero_grad()
+    output = model(train_images)
+    loss = lossfn(output, trainlb1)
+    loss.backward()
+    optimizer.step()
+    print(loss)
+
+for epoch in range(1000):
+    train()
+    
+#As the trainning process has been completed, we are going on with prediction
+
+true = 0
+test_pred = model(test_images)
+losspre = lossfn(test_pred, testlb1)
+print(losspre.item())
+test_pr, test_pred = torch.max(test_pred,1)
+test_pred = test_pred.numpy().tolist()
+for i in range(len(test_labels)):
+    if test_labels[i] == test_pred[i]:
+        true += 1
+print('accuracy:'+str(true/10000))
+
+    
